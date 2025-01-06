@@ -1,3 +1,5 @@
+import { Lato } from 'next/font/google';
+
 /** @type {import('tailwindcss').Config} */
 export default {
   content: [
@@ -5,13 +7,22 @@ export default {
     "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
   ],
+
+  daisyui: {
+    themes: ["luxury"],
+  },
+
   theme: {
     extend: {
+      fontFamily:{
+        Lato:["Lato","sans-serif"]
+      },
       colors: {
-        background: "var(--background)",
-        foreground: "var(--foreground)",
+        kuning:'#d39840',
       },
     },
   },
-  plugins: [],
+  plugins: [
+    require('daisyui'),
+  ],
 };

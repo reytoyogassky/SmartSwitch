@@ -1,101 +1,141 @@
-import Image from "next/image";
+"use client";
+
+import { useState, useEffect } from "react";
+import useRealtimeData from "@/hooks/useRealtimeData";
+import NewStats from "@/components/NewStats";
+import BarLevel from "@/components/BarLevel";
+import Switch from "@/components/Switch";
+import BatasDayaSelector from "@/components/BatasDayaSelector";
+import Loading from "@/components/Loading";
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              src/app/page.js
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+  const { data } = useRealtimeData("myiot");
+  const [voltase, setVoltase] = useState(0);
+  const [power, setPower] = useState(0);
+  const [amper, setAmper] = useState(0);
+  const [frequency, setFrequency] = useState(0);
+  const [pf, setPf] = useState(0);
+  const [tagihan, setTagihan] = useState(0);
+  const [energy, setEnergy] = useState(0);
+  const [selectedBatasDaya, setSelectedBatasDaya] = useState("900VA-RTM");
+  const [selectedSaklar, setSelectedSaklar] = useState("saklar1"); // Tambahan state untuk saklar
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+  useEffect(() => {
+    if (data) {
+      // Ambil data berdasarkan saklar yang dipilih
+      const saklarData = data[selectedSaklar]?.kelistrikan || {};
+      setVoltase(parseFloat(saklarData.voltage) || 0);
+      setAmper(parseFloat(saklarData.current) || 0);
+      setFrequency(parseFloat(saklarData.frequency) || 0);
+      setPower(parseFloat(saklarData.power) || 0);
+      setPf(parseFloat(saklarData.pf) || 0);
+      setEnergy(parseFloat(saklarData.energy)||0)
+    }
+  }, [data, selectedSaklar]);
+
+  const handleBatasDayaChange = (batasDaya) => {
+    setSelectedBatasDaya(batasDaya);
+  };
+
+  const calculateTagihan = () => {
+    if (
+      data &&
+      data[selectedSaklar]?.kelistrikan?.energy &&
+      data.keuangan?.hargaKwh?.batasDaya[selectedBatasDaya]
+    ) {
+      const electricUsage = parseFloat(data[selectedSaklar].kelistrikan.energy);
+      const batasDaya = parseFloat(
+        data.keuangan.hargaKwh.batasDaya[selectedBatasDaya]
+      );
+
+      if (!isNaN(electricUsage) && !isNaN(batasDaya)) {
+        const calculatedTagihan = electricUsage * batasDaya;
+        setTagihan(calculatedTagihan.toFixed(2));
+      }
+    }
+  };
+
+  useEffect(() => {
+    calculateTagihan();
+  }, [selectedBatasDaya, data, selectedSaklar]);
+
+  const voltasePercentage = Math.min(100, (voltase / 240) * 100);
+  const powerPercentage = Math.min(100, (power / 100) * 100);
+  const amperPercentage = Math.min(100, (amper / 10) * 100);
+  const frequencyPercentage = Math.min(100, (frequency / 100) * 100);
+  const pfPercentage = Math.min(100, (pf / 1) * 100);
+
+  const voltaseDisplay = voltase.toFixed(2);
+  const powerDisplay = power.toFixed(2);
+  const amperDisplay = amper.toFixed(2);
+  const frequencyDisplay = frequency.toFixed(2);
+  const pfDisplay = pf.toFixed(2);
+
+  if (!data) {
+    return (
+      <div>
+        <Loading />
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-6 space-y-6">
+      <NewStats 
+      tagihan={tagihan} 
+      selectedBatasDaya={selectedBatasDaya}
+      voltase={voltaseDisplay} 
+      energy={energy}
+      
+      />
+      <BatasDayaSelector
+        data={data.keuangan.hargaKwh.batasDaya}
+        onBatasDayaChange={handleBatasDayaChange}
+      />
+      <div>
+        <h2 className="text-xl font-semibold mb-4">Devices</h2>
+        <div className="flex flex-wrap justify-center gap-2">
+          <Switch
+            nama="Saklar 1"
+            switchId="saklar1"
+            initialValue={data.saklar1?.switch === 1}
+          />
+          <Switch
+            nama="Saklar 2"
+            switchId="saklar2"
+            initialValue={data.saklar2?.switch === 1}
+          />
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
+      </div>
+
+      {/* Switch Saklar */}
+      <div className="mb-4">
+        <label className="font-semibold text-lg">Pilih Saklar:</label>
+        <select
+          value={selectedSaklar}
+          onChange={(e) => setSelectedSaklar(e.target.value)}
+          className="p-2 border border-gray-300 rounded-md w-full mt-2"
         >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+          <option value="saklar1">Saklar 1</option>
+          <option value="saklar2">Saklar 2</option>
+        </select>
+      </div>
+
+      <div>
+        <h2 className="text-xl font-semibold mb-2">Bar Levels</h2>
+        <BarLevel
+          voltasePercentage={voltasePercentage}
+          voltase={voltaseDisplay}
+          powerPercentage={powerPercentage}
+          power={powerDisplay}
+          amperPercentage={amperPercentage}
+          amper={amperDisplay}
+          frPercentage={frequencyPercentage}
+          fr={frequencyDisplay}
+          pfPercentage={pfPercentage}
+          pf={pfDisplay}
+        />
+      </div>
     </div>
   );
-}
+};
